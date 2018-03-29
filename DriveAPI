@@ -1,0 +1,49 @@
+public ResultsDetails DriveJSONAPI(DriveJSONAPIData actionData)
+        {
+            ResultsDetails resultsDetails = new ResultsDetails("Beginning DriveJSONAPI action...");
+
+            try
+            {
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(actionData.FQDN +"/"+actionData.URI);
+                WebHeaderCollection headerCollection = request.Headers;
+
+                request.Method = actionData.HttpRequestMethod;
+                request.Accept = actionData.Accept;
+                request.ContentType = actionData.ContentType;
+
+                foreach (DriveJSONAPIData.HeaderData header in actionData.Headers)
+                {
+                    headerCollection.Add(header.Key, header.Value);
+                }
+
+
+                Stream dataStream = request.GetRequestStream();
+                string streamString = "";
+                foreach (DriveJSONAPIData.BodyData body in actionData.Body)
+                {
+                    string keyValuePair = body.Key + "=" + body.Value + "&";
+                    streamString += keyValuePair;
+                }
+
+                byte[] byteArray = Encoding.UTF8.GetBytes(streamString);
+                dataStream.Write(byteArray, 0, byteArray.Length);
+
+                var response = (HttpWebResponse)request.GetResponse();
+                string responseString = new StreamReader(response.GetResponseStream()).ReadToEnd();
+                JObject responseJson = JObject.Parse(responseString);
+                
+                foreach (DriveJSONAPIData.SaveAttributeValueAsParam value in actionData.SaveValuesAsParams)
+                {
+                    string current = responseJson.GetValue(value.Attribute).ToString();
+                    Parameters.updateParam(Parameters.ParameterLevel.WF, value.ParamToSaveIn, current);
+                }
+
+            }
+            catch (Exception exc)
+            {
+                resultsDetails = new ResultsDetails(ActionResult.Failed, "An error has occurred.");
+            }
+
+            return resultsDetails;
+        }
+    }
